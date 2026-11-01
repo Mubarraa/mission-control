@@ -5,7 +5,7 @@ from mc.guides import GUIDES
 from mc.output import console, emit, localize, next_steps
 
 
-def guide(topic: str = typer.Argument(None, help="onboard, plan, approve or changes")) -> None:
+def guide(topic: str = typer.Argument(None, help="onboard (add a new crew member) | plan | approve | changes")) -> None:
     """Step-by-step guides for the main workflows, showing who runs each step."""
     if topic is None:
         data = {k: {"title": g["title"], "summary": g["summary"]} for k, g in GUIDES.items()}

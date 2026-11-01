@@ -23,13 +23,14 @@ from mc.output import ROLE_LABEL, console, err, localize, next_steps, state
 
 app = typer.Typer(
     name="mc",
-    help="Mission Control: plan missions, staff them with the right crew, and get them approved.\n\n"
-    "Start with `mc login --org <slug>`, then `mc inbox`. Add --json to any command for machine output.",
+    help=localize(
+        "Mission Control: plan missions, staff them with the right crew, and get them approved.\n\n"
+        "New here? [bold]mc guide[/bold] lists step-by-step workflows - e.g. [bold]mc guide onboard[/bold] to add a "
+        "new crew member. Start with `mc login --org <slug>`, then `mc inbox`. Add --json to any command."
+    ),
     no_args_is_help=False,
     invoke_without_command=True,
-    epilog="Step-by-step guides: [bold]mc guide[/bold] or README.md -> Common workflows "
-    "(onboard crew, plan & staff a mission, "
-    "approve, handle changes). Every command has --help.",
+    epilog=localize("Workflows: mc guide onboard | plan | approve | changes   ·   Every command has --help."),
     rich_markup_mode="rich",
     add_completion=False,
     pretty_exceptions_enable=False,
@@ -73,10 +74,15 @@ def getting_started() -> None:
         )
 
 
+app.command(
+    "guide",
+    rich_help_panel="Getting started",
+    help="Step-by-step workflows by role: onboard (add a new crew member), plan (staff a mission), "
+    "approve (get it signed off), changes (withdrawals, releases).",
+)(guide.guide)
 app.command(rich_help_panel="Session")(auth.login)
 app.command(rich_help_panel="Session")(auth.logout)
 app.command(rich_help_panel="Session")(auth.whoami)
-app.command("guide", rich_help_panel="Session")(guide.guide)
 app.add_typer(inbox.app, name="inbox", rich_help_panel="Daily work")
 app.command("match", rich_help_panel="Daily work")(match.match)
 app.add_typer(missions.app, name="mission", rich_help_panel="Daily work")

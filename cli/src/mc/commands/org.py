@@ -3,10 +3,13 @@ import typer
 from mc.client import seg
 from mc.commands.common import api, confirm
 from mc.errors import EXIT_NOT_FOUND, CliError
-from mc.output import ROLE_LABEL, console, emit, next_steps, ok, table
+from mc.output import ROLE_LABEL, console, emit, localize, next_steps, ok, table
 
 org_app = typer.Typer(help="Organisation settings (Directors).", no_args_is_help=True)
-member_app = typer.Typer(help="Members and roles (Directors).", no_args_is_help=True)
+member_app = typer.Typer(
+    help=localize("Members and roles (Directors). Onboarding a crew member end to end: mc guide onboard"),
+    no_args_is_help=True,
+)
 skill_app = typer.Typer(help="The organisation's skill taxonomy.", no_args_is_help=True)
 
 
@@ -51,7 +54,9 @@ def member_list():
     emit(rows, render)
 
 
-@member_app.command("add")
+@member_app.command(
+    "add", epilog=localize("Next steps for a new crew member (profile, skills, verification): mc guide onboard")
+)
 def member_add(
     email: str = typer.Argument(...),
     name: str = typer.Option(..., "--name"),
