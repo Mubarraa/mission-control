@@ -86,6 +86,101 @@ mc member list|add|deactivate      mc skill list|add|deactivate
 - Configuration: `--api URL` or `MC_API_URL`; the session lives in `~/.config/mc/session.json` (mode 0600, token
   only); `MC_PASSWORD` allows non-interactive login (used by the demo).
 
+## Common workflows
+
+Each step shows who runs it. Switch users with `mc login --org <slug> --email <email>`; check who you are with
+`mc whoami`.
+
+### 1. Onboard a crew member
+
+**Director:** create the account, and a crew profile if the person flies:
+
+```bash
+mc member add sam@artemis.io --name "Sam Rivera" --role CREW --crew   # prompts for an initial password
+mc skill add "Robotics" --category Systems                             # only if the skill doesn't exist yet
+```
+
+(If someone is already a member but has no profile yet, use `mc crew create sam@artemis.io`. Leads and Directors
+can have crew profiles too.)
+
+**Crew member:** declare skills and availability:
+
+```bash
+mc profile skill set geology 4                 # levels 1-5; recorded as UNVERIFIED
+mc profile unavailable add 2027-05-01 2027-05-15 --category LEAVE --note "Wedding"
+mc profile show
+```
+
+**Director or Lead:** verify the claims. Only verified levels count for matching, and nobody can verify their
+own skills.
+
+```bash
+mc crew show "Sam Rivera"
+mc crew verify "Sam Rivera" geology
+mc crew verify "Sam Rivera" eva --level 2 --cert-expires 2028-12-31   # adjust the level; set the cert expiry
+```
+
+If Sam later edits a verified skill, it becomes unverified again, and the previously verified level keeps counting
+until someone verifies the new one. MEDICAL and OTHER unavailability show to Leads only as "Unavailable".
+
+### 2. Plan and staff a mission
+
+**Mission Lead:**
+
+```bash
+mc mission create "Shackleton Rim Traverse" --start 2027-03-02 --end 2027-03-20
+mc mission slot add ART-4 --role Commander --skill piloting:4
+mc mission slot add ART-4 --role Geologist --count 2 --skill geology:3
+mc mission slot add ART-4 --role "EVA Specialist" --skill eva:3:cert   # :cert = valid certification required
+mc match ART-4                       # best crew for the whole mission, with reasons
+mc match ART-4 --explain Geologist   # score breakdown, alternatives, and why-not for gaps (closest first)
+mc match ART-4 --apply               # offer the suggestions (or --only Commander)
+mc mission offer ART-4 "Hana Kim" --slot Geologist   # or offer one person by hand (must be eligible)
+```
+
+The matcher never fills a slot with someone below its requirements. To close a gap, verify a pending claim
+(`mc crew verify`), change the dates (`mc mission edit`), or lower the requirement; each of these is visible to
+the approver.
+
+**Crew members:** respond from their inbox (short ids are fine):
+
+```bash
+mc inbox
+mc assignment accept 3d50
+mc assignment decline 3d50 --reason "Family commitment"   # a reason is required
+```
+
+### 3. Get it approved
+
+**Mission Lead:** once every position has an accepted crew member:
+
+```bash
+mc mission submit ART-4
+```
+
+**A different Director** (nobody approves a mission they submitted or own):
+
+```bash
+mc inbox                                   # missions awaiting approval
+mc mission show ART-4
+mc mission approve ART-4                   # or: mc mission reject ART-4 --reason "Need a backup EVA"
+```
+
+`mc org settings --approvals 2` makes missions need two Directors. Any edit to the dates, slots or crew sends a
+pending or approved mission back to DRAFT for re-approval. After approval: `mc mission start ART-4`, then
+`mc mission complete ART-4`.
+
+### 4. When plans change
+
+- **Crew can't go (before launch):** `mc assignment withdraw <id> --reason "..."`. The position reopens, a pending
+  or approved mission returns to DRAFT, and the lead gets a notification in `mc inbox` (dismiss it with
+  `mc inbox dismiss <id>`).
+- **Mission already active:** crew can't withdraw themselves; the lead or a Director runs
+  `mc assignment release <id>`.
+- **Offer left unanswered:** the lead's inbox flags offers older than the org's threshold
+  (`mc org settings --stale-offer-days 5`); follow up, or `mc assignment release <id>` and re-match.
+- **Audit trail:** `mc mission history ART-4`.
+
 ## Development
 
 ```bash
