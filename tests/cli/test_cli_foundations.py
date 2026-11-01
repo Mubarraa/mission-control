@@ -132,3 +132,15 @@ def test_json_flag_anywhere_prints_only_json(mc, mock_api, logged_in):
 def test_logout(mc, logged_in):
     code, out, _ = mc("logout")
     assert code == 0 and "Logged out" in out and session.load() == {}
+
+
+def test_unquoted_name_is_a_readable_usage_error(mc, cli_env):
+    code, out, err = mc("crew", "verify", "Dev", "Patel", "geology")
+    assert code == 2 and "Traceback" not in out + err
+    assert "unexpected extra argument" in err and "put it in quotes" in err
+    assert "mc crew verify --help" in err
+
+
+def test_unknown_option_is_a_readable_usage_error(mc, cli_env):
+    code, _, err = mc("mission", "list", "--nope")
+    assert code == 2 and "nope" in err and "Traceback" not in err

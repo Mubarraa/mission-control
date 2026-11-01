@@ -12,7 +12,7 @@ MC="uv run --quiet mc"
 BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
 
 say()  { printf '\n%s== %s%s\n' "$BOLD" "$1" "$RESET"; }
-run()  { printf '%s$ mc %s%s\n' "$DIM" "$*" "$RESET"; $MC "$@" || true; }
+run()  { printf '%s$ uv run mc' "$DIM"; printf ' %q' "$@"; printf '%s\n' "$RESET"; $MC "$@" || true; }
 as()   { $MC login --org "${2:-artemis-labs}" --email "$1" >/dev/null; printf '%s(now acting as %s)%s\n' "$DIM" "$1" "$RESET"; }
 json() { $MC "$@" --json; }
 field(){ python3 -c "import json,sys; print(eval('json.load(sys.stdin)'+sys.argv[1]))" "$1"; }

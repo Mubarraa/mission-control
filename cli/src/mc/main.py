@@ -9,6 +9,13 @@ import sys
 import click
 import typer
 
+try:  # newer Typer vendors its own copy of click; its exceptions are not click's
+    from typer._click import exceptions as _tclick
+
+    USAGE_ERRORS: tuple[type[Exception], ...] = (click.exceptions.UsageError, _tclick.UsageError)
+except ImportError:  # pragma: no cover - older Typer uses click directly
+    USAGE_ERRORS = (click.exceptions.UsageError,)
+
 from mc import session
 from mc.commands import assignments, auth, crew, guide, inbox, match, missions, org
 from mc.errors import EXIT_USAGE, CliError
@@ -95,14 +102,26 @@ def run(argv: list[str] | None = None) -> int:
         if exc.hint:
             err.print(f"  [dim]{localize(exc.hint)}[/dim]")
         return exc.exit_code
-    except click.exceptions.UsageError as exc:
-        exc.show()
+    except USAGE_ERRORS as exc:
+        _usage_error(exc)
         return EXIT_USAGE
     except (click.exceptions.Abort, typer.Abort):
         err.print("Aborted - nothing was changed.")
         return 1
     except (click.exceptions.Exit, typer.Exit) as exc:
         return exc.exit_code
+
+
+def _usage_error(exc: Exception) -> None:
+    """One readable line plus a pointer to --help, never a traceback."""
+    message = getattr(exc, "message", None) or str(exc)
+    err.print(f"[red]Error:[/red] {message}")
+    if "unexpected extra argument" in message:
+        err.print('  [dim]If a name contains spaces, put it in quotes, e.g. "Dev Patel" (or use their email).[/dim]')
+    ctx = getattr(exc, "ctx", None)
+    path = getattr(ctx, "command_path", None)
+    if path:
+        err.print(f"  [dim]See: {localize(path + ' --help')}[/dim]")
 
 
 def entrypoint() -> None:
