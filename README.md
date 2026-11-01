@@ -63,6 +63,8 @@ matcher, and **Orion Dynamics** (`orion-dynamics`, `ORN-n`), which exists to dem
 
 ```
 mc login --org SLUG [--email E]       mc logout        mc whoami
+mc                                    # getting started: who you are and what to do next
+mc guide [onboard|plan|approve|changes]   # step-by-step workflows, by role
 mc inbox                              # role-aware home screen; notifications first
 mc inbox dismiss ID
 
@@ -82,6 +84,8 @@ mc member list|add|deactivate      mc skill list|add|deactivate
 
 - Add `--json` anywhere for machine-readable output (`mc mission list --json | jq`).
 - After every state change, `mc` prints a **Next:** hint.
+- `mission cancel`, `mission abort`, `assignment release` and `member deactivate` ask for confirmation; add
+  `--yes` in scripts.
 - Exit codes: `0` ok, `2` usage, `3` auth/permission, `4` not found, `5` conflict/validation, `6` server/connection.
 - Configuration: `--api URL` or `MC_API_URL`; the session lives in `~/.config/mc/session.json` (mode 0600, token
   only); `MC_PASSWORD` allows non-interactive login (used by the demo).
@@ -91,7 +95,8 @@ mc member list|add|deactivate      mc skill list|add|deactivate
 
 ## Common workflows
 
-Each step shows who runs it. Switch users with `mc login --org <slug> --email <email>`; check who you are with
+The same guides are available in the terminal: `uv run mc guide` lists them, and `uv run mc guide onboard`,
+`plan`, `approve` or `changes` prints one. Each step shows who runs it. Switch users with `mc login --org <slug> --email <email>`; check who you are with
 `mc whoami`.
 
 ### 1. Onboard a crew member

@@ -112,3 +112,36 @@ Errors SHALL be shown as one readable message explaining the rule that was viola
 #### Scenario: Crew attempts approval
 - **WHEN** a Crew Member runs `mc mission approve ART-12`
 - **THEN** the CLI explains that approving missions requires the Director role
+
+### Requirement: In-terminal workflow guides
+`mc guide` SHALL list the available step-by-step guides, and `mc guide TOPIC` SHALL print one guide (onboarding crew, planning and staffing a mission, approval, handling changes), showing which role runs each step and commands that can be copied as-is. Every command shown in a guide SHALL be a real `mc` command.
+
+#### Scenario: List guides
+- **WHEN** a user runs `mc guide`
+- **THEN** the CLI lists each topic with a one-line description and how to open it
+
+#### Scenario: Open a guide
+- **WHEN** a user runs `mc guide onboard`
+- **THEN** the CLI prints the onboarding steps grouped by role (Director, crew member, Director or Lead), with runnable commands
+
+### Requirement: Getting-started screen
+Running `mc` with no arguments SHALL show a short getting-started screen based on the local session, without calling the API. It SHALL suggest `mc login` when not logged in, and show the current user, role and organisation with `mc inbox` as the next step when logged in, plus pointers to `mc guide` and `mc --help` in both cases.
+
+#### Scenario: Not logged in
+- **WHEN** a user with no session runs `mc`
+- **THEN** the CLI suggests `mc login --org <slug>`, `mc guide` and `mc --help`
+
+#### Scenario: Logged in
+- **WHEN** a logged-in Mission Lead runs `mc`
+- **THEN** the CLI shows their email, role and organisation and suggests `mc inbox`
+
+### Requirement: Confirmation before irreversible actions
+Cancelling or aborting a mission, releasing a crew member and deactivating a member SHALL ask for confirmation, describing the consequence, unless `--yes` is given. Declining the confirmation SHALL send no request.
+
+#### Scenario: Cancel declined
+- **WHEN** a lead runs `mc mission cancel ART-4` and answers no
+- **THEN** no request is sent and the mission is unchanged
+
+#### Scenario: Scripted cancel
+- **WHEN** a lead runs `mc mission cancel ART-4 --yes`
+- **THEN** the mission is cancelled without a prompt

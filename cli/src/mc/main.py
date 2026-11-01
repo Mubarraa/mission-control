@@ -9,16 +9,19 @@ import sys
 import click
 import typer
 
-from mc.commands import assignments, auth, crew, inbox, match, missions, org
+from mc import session
+from mc.commands import assignments, auth, crew, guide, inbox, match, missions, org
 from mc.errors import EXIT_USAGE, CliError
-from mc.output import err, localize, state
+from mc.output import ROLE_LABEL, console, err, localize, next_steps, state
 
 app = typer.Typer(
     name="mc",
     help="Mission Control: plan missions, staff them with the right crew, and get them approved.\n\n"
     "Start with `mc login --org <slug>`, then `mc inbox`. Add --json to any command for machine output.",
-    no_args_is_help=True,
-    epilog="Step-by-step guides: README.md -> [bold]Common workflows[/bold] (onboard crew, plan & staff a mission, "
+    no_args_is_help=False,
+    invoke_without_command=True,
+    epilog="Step-by-step guides: [bold]mc guide[/bold] or README.md -> Common workflows "
+    "(onboard crew, plan & staff a mission, "
     "approve, handle changes). Every command has --help.",
     rich_markup_mode="rich",
     add_completion=False,
@@ -26,17 +29,47 @@ app = typer.Typer(
 )
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     api_url: str = typer.Option(None, "--api", envvar="MC_API_URL", help="API base URL", show_default=False),
 ) -> None:
     if api_url:
         state.api = api_url
+    if ctx.invoked_subcommand is None:
+        getting_started()
+
+
+def getting_started() -> None:
+    """Bare `mc`: where am I, and what should I do next? Uses only the local session (no API call)."""
+    data = session.load()
+    console.print("[bold]Mission Control[/bold] - plan missions, staff them with the right crew, get them approved.")
+    console.print()
+    if data.get("token"):
+        role = ROLE_LABEL.get(data.get("role"), data.get("role"))
+        org = data.get("org_name", data.get("org"))
+        until = str(data.get("expires_at", "-"))[:16]
+        console.print(
+            f"Logged in as [bold]{data.get('email')}[/bold] - {role} at {org} [dim](session until {until})[/dim]"
+        )
+        next_steps(
+            "mc inbox            (what needs your attention)",
+            "mc guide            (step-by-step workflows)",
+            "mc --help           (every command)",
+        )
+    else:
+        console.print("You are not logged in.")
+        next_steps(
+            "mc login --org <slug>",
+            "mc guide            (step-by-step workflows)",
+            "mc --help           (every command)",
+        )
 
 
 app.command(rich_help_panel="Session")(auth.login)
 app.command(rich_help_panel="Session")(auth.logout)
 app.command(rich_help_panel="Session")(auth.whoami)
+app.command("guide", rich_help_panel="Session")(guide.guide)
 app.add_typer(inbox.app, name="inbox", rich_help_panel="Daily work")
 app.command("match", rich_help_panel="Daily work")(match.match)
 app.add_typer(missions.app, name="mission", rich_help_panel="Daily work")
@@ -65,10 +98,10 @@ def run(argv: list[str] | None = None) -> int:
     except click.exceptions.UsageError as exc:
         exc.show()
         return EXIT_USAGE
-    except click.exceptions.Abort:
-        err.print("Aborted.")
+    except (click.exceptions.Abort, typer.Abort):
+        err.print("Aborted - nothing was changed.")
         return 1
-    except click.exceptions.Exit as exc:
+    except (click.exceptions.Exit, typer.Exit) as exc:
         return exc.exit_code
 
 

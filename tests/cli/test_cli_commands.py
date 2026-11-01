@@ -266,3 +266,82 @@ def test_custom_prefix(mc, mock_api, logged_in, monkeypatch):
     mock_api({("POST", "/v1/missions"): (201, MISSION)})
     _, out, _ = mc("mission", "create", "M", "--start", "2027-03-01", "--end", "2027-03-21")
     assert "Next: mcx mission slot add ART-12" in out and "uv run" not in out
+
+
+# ------------------------------------------------------------------ self-guidance (task group 8)
+
+import shlex  # noqa: E402
+
+import click  # noqa: E402
+import typer.main  # noqa: E402
+
+from mc.guides import GUIDES  # noqa: E402
+from mc.main import app as mc_app  # noqa: E402
+
+
+def test_guide_lists_topics(mc, cli_env):
+    code, out, _ = mc("guide")
+    assert code == 0 and all(t in out for t in GUIDES) and "mc guide onboard" in out
+
+
+def test_guide_renders_steps_by_role(mc, cli_env):
+    code, out, _ = mc("guide", "onboard")
+    assert code == 0 and "Director or Lead" in out and 'mc crew verify "Sam Rivera" geology' in out
+
+
+def test_unknown_guide(mc, cli_env):
+    code, _, err = mc("guide", "nope")
+    assert code == EXIT_USAGE and "onboard" in err
+
+
+def test_every_guide_command_is_a_real_mc_command():
+    root = typer.main.get_command(mc_app)
+    for topic, g in GUIDES.items():
+        for _, command, _ in g["steps"]:
+            if not command:
+                continue
+            tokens = shlex.split(command)[1:]
+            cmd, path = root, []
+            while isinstance(cmd, click.Group) and tokens and tokens[0] in cmd.commands:
+                path.append(tokens.pop(0))
+                cmd = cmd.commands[path[-1]]
+            assert not isinstance(cmd, click.Group), f"{topic}: '{command}' is not a full command"
+            cmd.make_context(" ".join(path), tokens)  # raises if options/arguments don't parse
+
+
+def test_bare_mc_when_logged_out(mc, cli_env):
+    code, out, _ = mc()
+    assert code == 0 and "not logged in" in out and "mc login --org <slug>" in out and "mc guide" in out
+
+
+def test_bare_mc_when_logged_in(mc, logged_in):
+    code, out, _ = mc()
+    assert code == 0 and "lead@x.test" in out and "Mission Lead" in out and "mc inbox" in out
+
+
+def test_cancel_declined_sends_nothing(mc, mock_api, logged_in):
+    rec = mock_api({("GET", "/v1/missions/ART-12"): (200, MISSION)})
+    code, _, _ = mc("mission", "cancel", "ART-12", stdin="n\n")
+    assert code == 1 and [r.method for r in rec.requests] == ["GET"]
+
+
+def test_cancel_with_yes_skips_prompt(mc, mock_api, logged_in):
+    rec = mock_api(
+        {
+            ("GET", "/v1/missions/ART-12"): (200, MISSION),
+            ("POST", "/v1/missions/ART-12/cancel"): (200, {**MISSION, "state": "CANCELLED"}),
+        }
+    )
+    code, out, _ = mc("mission", "cancel", "ART-12", "--yes")
+    assert code == 0 and rec.requests[-1].method == "POST" and "CANCELLED" in out
+
+
+def test_release_asks_and_proceeds_on_yes(mc, mock_api, logged_in):
+    rec = mock_api(
+        {
+            ("GET", "/v1/assignments"): (200, [ASSIGNMENT]),
+            ("POST", f"/v1/assignments/{ASSIGNMENT['id']}/release"): (200, {**ASSIGNMENT, "state": "RELEASED"}),
+        }
+    )
+    code, out, _ = mc("assignment", "release", "a1b2", stdin="y\n")
+    assert code == 0 and "Release Bob from Geologist on ART-12?" in out and rec.requests[-1].method == "POST"

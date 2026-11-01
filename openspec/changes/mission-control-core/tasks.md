@@ -52,6 +52,12 @@
 - [x] 7.1 Implement `seed.py` with the designed scenarios from design §16 (two orgs, two Directors in Artemis, the greedy-trap pair, an expired cert, an unverified claim, leave, a MEDICAL window, a crew member inside the recovery buffer) that can be re-run safely and prints logins. Verify that `make seed` runs twice without error, and that a match on the seeded demo mission shows the expected Commander and Geologist suggestions.
 - [x] 7.2 Write the e2e test (live server and CliRunner) for the full journey in specs/cli: Lead creates and matches, Crew accept, Lead submits, a different Director approves; also cross-tenant `mc mission show` gets 404 with exit code 4. Then write `scripts/demo.sh` and the README (prerequisites, 3-command quick start, demo walkthrough, link to design.md). Verify that `make test` is fully green and that `make up && make migrate && make seed && make demo` works from a clean `docker compose down -v`.
 
+## 8. CLI self-guidance (added after review, 15 min)
+
+- [x] 8.1 Add `mc guide [TOPIC]` with the four workflow guides as data in the CLI package, rendered by role with the command prefix applied. Verify with CliRunner tests that the topic list and one guide render, and that every guide command resolves to a real `mc` command.
+- [x] 8.2 Make bare `mc` show a getting-started screen from the local session (no API call). Verify with tests for the logged-out and logged-in screens.
+- [x] 8.3 Add confirmation prompts with `--yes` to `mission cancel`, `mission abort`, `assignment release` and `member deactivate`, describing the consequence. Verify with tests that declining sends no request and `--yes` skips the prompt.
+
 ## Workflow follow-up
 
 - Export `design.md` (plus links to the specs) as the submitted design document, together with the implementation and session transcripts.

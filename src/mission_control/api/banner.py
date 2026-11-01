@@ -46,6 +46,7 @@ def print_banner() -> None:
     else:
         lines += [f"  {Y}Database not reachable:{R} run `make up && make migrate && make seed`"]
     lines += [
+        f"  uv run mc guide                 {D}# step-by-step workflows, by role{R}",
         f"  uv run mc --help                {D}# every command, grouped by workflow{R}",
         f"  make demo                       {D}# narrated end-to-end walkthrough (about a minute){R}",
         "",

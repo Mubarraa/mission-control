@@ -1,7 +1,7 @@
 import typer
 
 from mc.client import seg
-from mc.commands.common import api
+from mc.commands.common import api, confirm
 from mc.errors import EXIT_NOT_FOUND, CliError
 from mc.output import ROLE_LABEL, console, emit, next_steps, ok, table
 
@@ -74,12 +74,16 @@ def member_add(
 
 
 @member_app.command("deactivate")
-def member_deactivate(email: str = typer.Argument(...)):
+def member_deactivate(
+    email: str = typer.Argument(...),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Don't ask for confirmation"),
+):
     """Deactivate a member (history is kept; they can no longer log in)."""
     a = api()
     member = next((m for m in a.get("/members") if m["email"].lower() == email.lower()), None)
     if member is None:
         raise CliError(f"No member with email {email}.", EXIT_NOT_FOUND)
+    confirm(f"Deactivate {member['name']} ({member['email']})? They will no longer be able to log in.", yes)
     m = a.patch(f"/members/{member['id']}", {"active": False})
     emit(m, lambda: ok(f"Deactivated {m['name']}."))
 

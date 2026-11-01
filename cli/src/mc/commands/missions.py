@@ -1,7 +1,7 @@
 import typer
 
 from mc.client import seg
-from mc.commands.common import api, require_reason
+from mc.commands.common import api, confirm, require_reason
 from mc.errors import CliError
 from mc.output import console, emit, next_steps, ok, parse_when, short, styled, table, window
 
@@ -279,5 +279,28 @@ def _simple(action: str, verb: str, help_text: str):
 _simple("withdraw", "withdrawn from approval", "Pull a pending mission back to DRAFT.")
 _simple("start", "started", "Start an approved mission.")
 _simple("complete", "completed", "Mark an active mission complete.")
-_simple("abort", "aborted", "Abort an active mission.")
-_simple("cancel", "cancelled", "Cancel a mission that has not started (releases its crew).")
+
+
+def _destructive(action: str, verb: str, help_text: str, consequence: str):
+    def command(
+        ref: str = typer.Argument(..., help="Mission code"),
+        yes: bool = typer.Option(False, "--yes", "-y", help="Don't ask for confirmation"),
+    ):
+        a = api()
+        mi = a.get(f"/missions/{seg(ref)}")
+        crew = sum(len(s["assignments"]) for s in mi["slots"])
+        confirm(f"{action.capitalize()} {mi['code']} ({mi['name']})? {consequence.format(crew=crew)}", yes)
+        result = a.post(f"/missions/{seg(ref)}/{action}")
+        emit(result, lambda: ok(f"{result['code']} {verb} -> {styled(result['state'])}"))
+
+    command.__doc__ = help_text
+    app.command(action)(command)
+
+
+_destructive("abort", "aborted", "Abort an active mission.", "This ends the mission and cannot be undone.")
+_destructive(
+    "cancel",
+    "cancelled",
+    "Cancel a mission that has not started (releases its crew).",
+    "This releases {crew} crew member(s) and cannot be undone.",
+)

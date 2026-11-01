@@ -31,3 +31,9 @@ def resolve_prefix(rows: list[dict], ref: str, what: str, key: str = "id") -> di
 
 def resolve_assignment(a: client.Api, ref: str) -> dict:
     return resolve_prefix(a.get("/assignments"), ref, "assignment")
+
+
+def confirm(message: str, yes: bool) -> None:
+    """Ask before an irreversible action unless --yes was given. Declining raises Abort (no request sent)."""
+    if not yes:
+        typer.confirm(message, default=False, abort=True)

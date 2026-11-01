@@ -1,6 +1,6 @@
 import typer
 
-from mc.commands.common import api, require_reason, resolve_assignment
+from mc.commands.common import api, confirm, require_reason, resolve_assignment
 from mc.output import console, emit, next_steps, ok, short, styled, table, window
 
 app = typer.Typer(help="Respond to offers, withdraw, or release crew.", no_args_is_help=True)
@@ -73,10 +73,17 @@ def withdraw(assignment: str = typer.Argument(...), reason: str = typer.Option(N
 
 
 @app.command("release")
-def release(assignment: str = typer.Argument(...)):
+def release(
+    assignment: str = typer.Argument(...),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Don't ask for confirmation"),
+):
     """Release a crew member from a mission you own (Directors/mission owner)."""
     a = api()
-    x = a.post(f"/assignments/{resolve_assignment(a, assignment)['id']}/release")
+    target = resolve_assignment(a, assignment)
+    confirm(
+        f"Release {target['crew_name']} from {target['slot']} on {target['mission_code']}? Their position reopens.", yes
+    )
+    x = a.post(f"/assignments/{target['id']}/release")
     emit(
         x,
         lambda: (
