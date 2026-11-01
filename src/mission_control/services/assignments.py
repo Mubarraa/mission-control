@@ -182,9 +182,30 @@ def accept(db: Session, ctx: TenantContext, assignment_id: str, *, now: datetime
         now=now,
         mission=mission.code,
     )
+    _notify_if_fully_crewed(db, ctx, mission, now)
     material_change(db, ctx, mission, f"{a.crew.display_name} accepted {a.slot.role_name}", now)
     db.commit()
     return a
+
+
+def _notify_if_fully_crewed(db: Session, ctx: TenantContext, mission: m.Mission, now: datetime) -> None:
+    """One notification when the last open position is accepted - the moment the owner can submit."""
+    if mission.state != MissionState.DRAFT.value or not mission.slots:
+        return
+    db.flush()
+    accepted = assignments_of(db, mission, (AssignmentState.ACCEPTED.value,))
+    if all(sum(1 for a in accepted if a.slot_id == s.id) >= s.headcount for s in mission.slots):
+        notifications.notify(
+            db,
+            org_id=ctx.org_id,
+            recipient_id=mission.owner_id,
+            kind="mission.fully_crewed",
+            mission_id=mission.id,
+            now=now,
+            mission_code=mission.code,
+            mission_name=mission.name,
+            positions=len(accepted),
+        )
 
 
 def _double_booked(clash: m.Assignment | None) -> Conflict:

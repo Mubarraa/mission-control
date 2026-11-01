@@ -110,30 +110,41 @@ def build(db: Session, ctx: TenantContext, *, now: datetime) -> dict:
 
 def _mission_attention(db: Session, mission: m.Mission, stale_days: int, now: datetime) -> dict | None:
     active = assignments_of(db, mission)
-    unfilled = []
-    for slot in mission.slots:
-        taken = sum(1 for a in active if a.slot_id == slot.id)
-        accepted = sum(1 for a in active if a.slot_id == slot.id and a.state == AssignmentState.ACCEPTED.value)
-        if accepted < slot.headcount:
+    draft = mission.state == MissionState.DRAFT.value
+    slots, unfilled, offers = [], [], []
+    for slot in mission.slots:  # slot order
+        mine = [a for a in active if a.slot_id == slot.id]
+        accepted = [a for a in mine if a.state == AssignmentState.ACCEPTED.value]
+        pending = []
+        for a in mine:
+            if a.state != AssignmentState.PROPOSED.value:
+                continue
+            age = (now - a.offered_at).total_seconds() / 86400
+            offer = {
+                "assignment_id": a.id,
+                "crew": a.crew.display_name,
+                "slot": slot.role_name,
+                "age_days": round(age, 1),
+                "stale": age > stale_days,
+            }
+            pending.append(offer)
+            offers.append(offer)
+        slots.append(
+            {
+                "slot": slot.role_name,
+                "headcount": slot.headcount,
+                "accepted": [a.crew.display_name for a in accepted],
+                "offered": pending,
+                "open": slot.headcount - len(mine),
+            }
+        )
+        if len(accepted) < slot.headcount:
             unfilled.append(
                 {
                     "slot": slot.role_name,
-                    "accepted": accepted,
-                    "offered": taken - accepted,
+                    "accepted": len(accepted),
+                    "offered": len(pending),
                     "headcount": slot.headcount,
-                }
-            )
-    offers = []
-    for a in active:
-        if a.state == AssignmentState.PROPOSED.value:
-            age = (now - a.offered_at).total_seconds() / 86400
-            offers.append(
-                {
-                    "assignment_id": a.id,
-                    "crew": a.crew.display_name,
-                    "slot": a.slot.role_name,
-                    "age_days": round(age, 1),
-                    "stale": age > stale_days,
                 }
             )
     exits = (
@@ -141,11 +152,11 @@ def _mission_attention(db: Session, mission: m.Mission, stale_days: int, now: da
             {"crew": a.crew.display_name, "slot": a.slot.role_name, "state": a.state, "reason": a.exit_reason}
             for a in assignments_of(db, mission, (AssignmentState.DECLINED.value, AssignmentState.WITHDRAWN.value))
         ]
-        if mission.state == MissionState.DRAFT.value
+        if draft
         else []
     )
     rejection = None
-    if mission.state == MissionState.DRAFT.value:
+    if draft:
         last = db.scalar(
             select(m.Approval)
             .where(m.Approval.mission_id == mission.id)
@@ -154,16 +165,19 @@ def _mission_attention(db: Session, mission: m.Mission, stale_days: int, now: da
         )
         if last is not None and last.decision == ApprovalDecision.REJECT.value:
             rejection = {"reason": last.reason, "by": db.get(m.Membership, last.approver_id).user.name}
-    if mission.state == MissionState.DRAFT.value or offers:
-        return {
-            "code": mission.code,
-            "name": mission.name,
-            "state": mission.state,
-            "starts_at": mission.starts_at,
-            "unfilled": unfilled if mission.state == MissionState.DRAFT.value else [],
-            "offers": offers,
-            "exits": exits,
-            "rejection": rejection,
-            "ready_to_submit": mission.state == MissionState.DRAFT.value and bool(mission.slots) and not unfilled,
-        }
-    return None
+    if not (draft or offers):
+        return None
+    return {
+        "code": mission.code,
+        "name": mission.name,
+        "state": mission.state,
+        "starts_at": mission.starts_at,
+        "slots": slots if draft else [],
+        "accepted_total": sum(len(sl["accepted"]) for sl in slots),
+        "positions_total": sum(sl["headcount"] for sl in slots),
+        "unfilled": unfilled if draft else [],
+        "offers": offers,
+        "exits": exits,
+        "rejection": rejection,
+        "ready_to_submit": draft and bool(mission.slots) and not unfilled,
+    }

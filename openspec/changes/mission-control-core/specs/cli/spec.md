@@ -47,6 +47,10 @@ The CLI SHALL cover every primary workflow through the API alone. That includes 
 - **WHEN** an offer has been PROPOSED for 2 days and the stale threshold is 3 days
 - **THEN** `mc inbox` lists it with its age but does not flag it as stale
 
+#### Scenario: Lead sees who has accepted
+- **WHEN** a Lead's DRAFT mission has five positions and one crew member has accepted
+- **THEN** `mc inbox` shows every slot in order with who has accepted and who is still offered, a "1 of 5 accepted" count, and a next step explaining that it is waiting for crew
+
 #### Scenario: Lead sees a withdrawal notification
 - **WHEN** Bob has withdrawn from the Lead's approved mission ART-12
 - **THEN** `mc inbox` shows the notification first, with the mission now in DRAFT, Bob's slot and reason, and suggests `mc match ART-12` and `mc inbox dismiss <id>`

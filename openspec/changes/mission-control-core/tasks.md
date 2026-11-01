@@ -58,6 +58,9 @@
 - [x] 8.2 Make bare `mc` show a getting-started screen from the local session (no API call). Verify with tests for the logged-out and logged-in screens.
 - [x] 8.3 Add confirmation prompts with `--yes` to `mission cancel`, `mission abort`, `assignment release` and `member deactivate`, describing the consequence. Verify with tests that declining sends no request and `--yes` skips the prompt.
 
+- [x] 8.4 Show every slot in the Lead's inbox with accepted and offered crew (slot order), an "N of M accepted" count, readable offer ages and a waiting/next-step hint. Verify with an API test of the inbox data and a CliRunner test of the layout.
+- [x] 8.5 Notify the mission owner once when the last position is accepted (`mission.fully_crewed`). Verify with API tests that earlier acceptances create no notification and the last one creates exactly one.
+
 ## Workflow follow-up
 
 - Export `design.md` (plus links to the specs) as the submitted design document, together with the implementation and session transcripts.

@@ -345,3 +345,83 @@ def test_release_asks_and_proceeds_on_yes(mc, mock_api, logged_in):
     )
     code, out, _ = mc("assignment", "release", "a1b2", stdin="y\n")
     assert code == 0 and "Release Bob from Geologist on ART-12?" in out and rec.requests[-1].method == "POST"
+
+
+def test_inbox_lists_every_slot_with_progress(mc, mock_api, logged_in):
+    inbox = {
+        "role": "LEAD",
+        "stale_offer_days": 3,
+        "approvals": [],
+        "offers": [],
+        "notifications": [],
+        "skills_awaiting_verification": [],
+        "missions": [
+            {
+                "code": "ART-3",
+                "name": "Lunar South Pole Survey",
+                "state": "DRAFT",
+                "starts_at": "2027-03-01T00:00:00Z",
+                "accepted_total": 1,
+                "positions_total": 3,
+                "rejection": None,
+                "exits": [],
+                "ready_to_submit": False,
+                "offers": [],
+                "unfilled": [{"slot": "Geologist", "accepted": 0, "offered": 2, "headcount": 2}],
+                "slots": [
+                    {"slot": "Commander", "headcount": 1, "accepted": ["Alice Okafor"], "offered": [], "open": 0},
+                    {
+                        "slot": "Geologist",
+                        "headcount": 2,
+                        "accepted": [],
+                        "open": 0,
+                        "offered": [
+                            {
+                                "assignment_id": "fe430147-x",
+                                "crew": "Bob Lindqvist",
+                                "slot": "Geologist",
+                                "age_days": 0.0,
+                                "stale": False,
+                            },
+                            {
+                                "assignment_id": "4aa83618-x",
+                                "crew": "Dev Patel",
+                                "slot": "Geologist",
+                                "age_days": 4.0,
+                                "stale": True,
+                            },
+                        ],
+                    },
+                ],
+            }
+        ],
+    }
+    mock_api({("GET", "/v1/inbox"): (200, inbox)})
+    code, out, _ = mc("inbox")
+    assert code == 0 and "1 of 3 accepted" in out
+    assert "Commander  Alice Okafor ACCEPTED ✓" in out
+    assert "Bob Lindqvist offered just now [fe430147]" in out and "Dev Patel offered 4d ago [4aa83618] ! stale" in out
+    assert "waiting for 2 crew to accept - mc mission show ART-3" in out
+
+
+def test_inbox_renders_fully_crewed_notification(mc, mock_api, logged_in):
+    inbox = {
+        "role": "LEAD",
+        "stale_offer_days": 3,
+        "approvals": [],
+        "missions": [],
+        "offers": [],
+        "skills_awaiting_verification": [],
+        "notifications": [
+            {
+                "id": "3f2a91c0-x",
+                "kind": "mission.fully_crewed",
+                "mission_id": "m",
+                "created_at": "2027-01-15T07:00:00Z",
+                "data": {"mission_code": "ART-3", "mission_name": "Survey", "positions": 5},
+            }
+        ],
+    }
+    mock_api({("GET", "/v1/inbox"): (200, inbox)})
+    _, out, _ = mc("inbox")
+    assert "ART-3 is fully crewed - all 5 positions accepted" in out and "mc mission submit ART-3" in out

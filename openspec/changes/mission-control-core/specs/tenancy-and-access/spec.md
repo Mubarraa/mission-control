@@ -100,11 +100,15 @@ The system SHALL record an audit event for each mission state transition, approv
 - **THEN** the system returns that mission's audit events in time order
 
 ### Requirement: Notifications
-The system SHALL deliver notifications to individual members for events that need their attention, starting with crew withdrawals, which notify the mission owner. A notification belongs to one organisation and one recipient. Only the recipient SHALL see it. It stays unread until the recipient dismisses it. Notifications are separate from the audit trail, and dismissing one SHALL NOT affect audit events.
+The system SHALL deliver notifications to individual members for events that need their attention: a crew withdrawal, and a mission becoming fully crewed, each notify the mission owner. A notification belongs to one organisation and one recipient. Only the recipient SHALL see it. It stays unread until the recipient dismisses it. Notifications are separate from the audit trail, and dismissing one SHALL NOT affect audit events.
 
 #### Scenario: Owner notified of withdrawal
 - **WHEN** a crew member withdraws from a mission owned by a Lead
 - **THEN** the Lead has an unread notification naming the mission, the crew member, the slot, the reason, and whether the mission returned to DRAFT
+
+#### Scenario: Owner notified when fully crewed
+- **WHEN** the last open position on a DRAFT mission is accepted
+- **THEN** the owner receives one notification that the mission is fully crewed and ready to submit; earlier acceptances create no notification
 
 #### Scenario: Only the recipient sees a notification
 - **WHEN** another member of the same organisation, or a member of another organisation, lists their notifications

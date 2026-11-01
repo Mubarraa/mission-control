@@ -91,3 +91,37 @@ def test_lead_sees_rejection_and_exits(client, db, auth_headers):
     item = client.get("/v1/inbox", headers=auth_headers(lead, org)).json()["missions"][0]
     assert item["exits"] == [{"crew": "Bob", "slot": "Geologist", "state": "DECLINED", "reason": "family"}]
     assert item["unfilled"][0]["slot"] == "Geologist"
+
+
+def test_inbox_shows_every_slot_with_accepted_and_offered(client, db, auth_headers):
+    org, lead, geo, bob, mission, slot = _world(db)
+    make_slot(db, mission, "Backup", {geo: 1}, headcount=2)
+    carol = make_crew(db, org, name="Carol", skills={geo: 2})
+    make_assignment(db, mission, slot, bob, "ACCEPTED")
+    make_assignment(db, mission, mission.slots[1], carol)
+    item = client.get("/v1/inbox", headers=auth_headers(lead, org)).json()["missions"][0]
+    assert (item["accepted_total"], item["positions_total"]) == (1, 3)
+    assert [(s["slot"], s["accepted"], [o["crew"] for o in s["offered"]], s["open"]) for s in item["slots"]] == [
+        ("Geologist", ["Bob"], [], 0),
+        ("Backup", [], ["Carol"], 1),
+    ]
+
+
+def test_fully_crewed_notification_only_on_last_acceptance(client, db, auth_headers):
+    from sqlalchemy import select
+
+    from mission_control.db import models as m
+
+    org, lead, geo, bob, mission, slot = _world(db)
+    backup = make_slot(db, mission, "Backup", {geo: 1})
+    carol = make_crew(db, org, name="Carol", skills={geo: 2})
+    a1, a2 = make_assignment(db, mission, slot, bob), make_assignment(db, mission, backup, carol)
+
+    def notes():
+        return db.scalars(select(m.Notification).where(m.Notification.kind == "mission.fully_crewed")).all()
+
+    client.post(f"/v1/assignments/{a1.id}/accept", headers=auth_headers(bob.membership, org))
+    assert notes() == []
+    client.post(f"/v1/assignments/{a2.id}/accept", headers=auth_headers(carol.membership, org))
+    [note] = notes()
+    assert note.recipient_id == lead.id and note.data["mission_code"] == mission.code and note.data["positions"] == 2

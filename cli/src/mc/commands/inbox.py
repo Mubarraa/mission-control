@@ -26,6 +26,14 @@ def dismiss(
     emit(result, lambda: ok("Notification dismissed."))
 
 
+def _age(days: float) -> str:
+    if days < 1 / 24:
+        return "just now"
+    if days < 1:
+        return f"{int(days * 24)}h ago"
+    return f"{days:g}d ago"
+
+
 def _render(d: dict) -> None:
     empty = True
     hints: list[str] = []
@@ -42,6 +50,12 @@ def _render(d: dict) -> None:
                 )
                 console.print(f'      Reason: "{data["reason"]}"')
                 hints += [f"mc match {data['mission_code']}", f"mc inbox dismiss {short(n['id'])}"]
+            elif n["kind"] == "mission.fully_crewed":
+                console.print(
+                    f"  [green]![/green] \\[{short(n['id'])}] [bold]{data['mission_code']}[/bold] is fully crewed - "
+                    f"all {data['positions']} positions accepted   [dim]{age(n['created_at'])}[/dim]"
+                )
+                hints += [f"mc mission submit {data['mission_code']}", f"mc inbox dismiss {short(n['id'])}"]
             else:
                 console.print(f"  \\[{short(n['id'])}] {n['kind']}: {data}")
         console.print()
@@ -65,30 +79,47 @@ def _render(d: dict) -> None:
         empty = False
         console.print("[bold]YOUR MISSIONS[/bold]")
         for mi in d["missions"]:
+            progress = ""
+            if mi.get("positions_total"):
+                progress = f"   {mi['accepted_total']} of {mi['positions_total']} accepted"
             console.print(
-                f"  [bold]{mi['code']}[/bold] {mi['name']}  {styled(mi['state'])}  starts {day(mi['starts_at'])}"
+                f"  [bold]{mi['code']}[/bold] {mi['name']}  {styled(mi['state'])}  "
+                f"starts {day(mi['starts_at'])}{progress}"
             )
             if mi.get("rejection"):
                 console.print(f'      [red]Rejected by {mi["rejection"]["by"]}:[/red] "{mi["rejection"]["reason"]}"')
-            for u in mi["unfilled"]:
-                console.print(
-                    f"      {u['slot']}: {u['accepted']}/{u['headcount']} accepted"
-                    + (f", {u['offered']} offered" if u["offered"] else "")
-                )
-            for o in mi["offers"]:
-                stale = "  [red]! stale[/red]" if o["stale"] else ""
-                console.print(
-                    f"      offer \\[{short(o['assignment_id'])}] {o['crew']} -> {o['slot']}, "
-                    f"{o['age_days']:g}d old{stale}"
-                )
-                if o["stale"]:
-                    hints.append(f"follow up with {o['crew']}, or: mc assignment release {short(o['assignment_id'])}")
+            width = max((len(sl["slot"]) for sl in mi.get("slots", [])), default=0)
+            for sl in mi.get("slots", []):
+                parts = [f"{name} [green]ACCEPTED ✓[/green]" for name in sl["accepted"]]
+                for o in sl["offered"]:
+                    stale = " [red]! stale[/red]" if o["stale"] else ""
+                    parts.append(f"{o['crew']} offered {_age(o['age_days'])} \\[{short(o['assignment_id'])}]{stale}")
+                    if o["stale"]:
+                        hints.append(
+                            f"follow up with {o['crew']}, or: mc assignment release {short(o['assignment_id'])}"
+                        )
+                if sl["open"]:
+                    parts.append(f"[red]{sl['open']} open[/red]")
+                console.print(f"      {sl['slot']:<{width}}  " + ", ".join(parts))
+            if not mi.get("slots"):  # pending/approved missions: only outstanding offers are listed
+                for o in mi["offers"]:
+                    console.print(
+                        f"      offer \\[{short(o['assignment_id'])}] {o['crew']} -> {o['slot']}, {_age(o['age_days'])}"
+                    )
             for x in mi["exits"]:
                 console.print(f'      [dim]{x["crew"]} {x["state"].lower()} {x["slot"]}: "{x["reason"]}"[/dim]')
             if mi["ready_to_submit"]:
                 hints.append(f"mc mission submit {mi['code']}")
-            elif mi["state"] == "DRAFT" and mi["unfilled"] and not any(u["offered"] for u in mi["unfilled"]):
-                hints.append(f"mc match {mi['code']}")
+            elif mi["state"] == "DRAFT":
+                open_positions = sum(sl["open"] for sl in mi.get("slots", []))
+                waiting = sum(len(sl["offered"]) for sl in mi.get("slots", []))
+                if open_positions:
+                    hints.append(
+                        f"mc match {mi['code']}      ({open_positions} position"
+                        f"{'s' if open_positions != 1 else ''} without an offer)"
+                    )
+                elif waiting:
+                    hints.append(f"waiting for {waiting} crew to accept - mc mission show {mi['code']}")
         console.print()
     if d["offers"]:
         empty = False
