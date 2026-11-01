@@ -541,7 +541,7 @@ override). The concurrency test uses two real connections that commit. Factories
 |---|---|---|---|
 | D1 | **Python + FastAPI + sync SQLAlchemy** | Fastest path to a well-typed API in the time budget. Sync avoids async ORM pitfalls (lazy-load `MissingGreenlet`) at no real cost at this scale. | TypeScript/Nest (more CLI plumbing), Go (slower to a rich domain model), async SQLAlchemy (risk without benefit here). |
 | D2 | **Postgres, not SQLite** | Exclusion constraints and `tstzrange` give race-proof double-booking prevention, and the RLS upgrade path exists. | SQLite: easier for reviewers to set up, but no exclusion constraints and only service-level checks, which can race. |
-| D3 | **Membership is the principal**; token scoped to one org | Users in several orgs are realistic. A single-tenant token makes "which org?" impossible to get wrong per request. | `org_id` in the URL path (easy to mismatch with the token); global user role (breaks multi-org). |
+| D3 | **Membership is the principal**; token scoped to one org | Users in several orgs are realistic. A single-tenant token makes "which org?" impossible to get wrong per request. | `org_id` in the URL path (easy to mismatch with the token); global user role (breaks multi-org). **Revisit:** a separate account per organisation is the recommended direction; see section 18.1. |
 | D4 | **Slots with headcount and per-slot requirements** | Matches how crews are actually organised, and turns matching into a well-defined assignment problem. | A flat list of mission skills (ambiguous: is it one person or two?). |
 | D5 | **Self-declared, verified skills; matching on verified levels only** | Respects "crew manage their own profiles" without letting crew game the matcher. Unverified claims show up as "worth verifying". | Director-set skills only (goes against the brief); fully self-declared (gameable). |
 | D6 | **Approval tied to a revision; edits auto-withdraw** | Closes the loophole of approving something and then changing it. Approvers explicitly sign off on what they saw. | Freezing edits while pending (frustrating for leads); approving without versioning (unsafe). |
@@ -587,6 +587,8 @@ override). The concurrency test uses two real connections that commit. Factories
 - [Single-director orgs can't approve their own missions] -> This is intentional, and the error says so clearly. The seed includes two Directors. The approver-of-last-resort question is documented as a policy choice for customers.
 - [JWT has no revocation] -> 8-hour TTL. Deactivating a membership is checked on every request (`get_ctx` loads the membership), so access ends immediately anyway.
 
+- [One login shared across organisations leaks a little and can't see cross-org bookings] -> Known limitation; see section 18.1. Recommended fix: a separate account per organisation.
+
 ## 16. Running and rollout
 
 This is greenfield, so there is no data migration. Developer and reviewer flow:
@@ -608,3 +610,52 @@ mission within the recovery buffer. Orion exists to demonstrate isolation. Rollb
 
 - Token TTL and whether `mc` should warn shortly before expiry. Either way the specs and tasks stay the same.
 - Final wording of reason strings in explanations. This can be polished during the CLI phase.
+
+## 18. Known limitations and recommended improvements
+
+Issues found after implementation that are deliberately **not** fixed in this version. Each item records the problem,
+its impact, and the recommended direction.
+
+### 18.1 Identity is shared across organisations (recommended: a separate account per organisation)
+
+**Current behaviour (D3).** A person has one global `User` (email + password). Each organisation gives them a
+separate `Membership` (role) and, optionally, a separate `CrewProfile`, so skills, verification, unavailability and
+assignment history are never shared between organisations. They log in with the **same email and password** for
+every organisation, choosing the organisation at login. The token they receive is valid for that organisation only.
+
+**Flaws.**
+
+1. **Cross-tenant information leak when adding members.** When a Director adds an email that already belongs to a
+   user in another organisation, `add_member` silently attaches the existing `User`:
+   - the response shows the **name registered in the other organisation**, not the name the Director entered;
+   - the **initial password the Director typed is ignored**, so the Director hands out credentials that do not work.
+
+   Together these reveal that the email exists elsewhere, and what name it uses there. It's a small leak, but it is
+   one, in a system whose core promise is that data never crosses tenants.
+2. **No organisation fully controls its users' credentials.** Password policy, resets and (in future) SSO cannot be
+   set per organisation, because one password serves every organisation the person belongs to. Deactivating a member
+   in one organisation correctly ends their access there, but a password compromise affects all of their
+   organisations.
+3. **Bookings don't cross organisations.** Someone crewing for two organisations can be booked by both for the same
+   dates, because (correctly) neither organisation's matcher can see the other's commitments. Today the only
+   mitigation is for the crew member to record unavailability in each organisation themselves.
+
+**Recommended improvement: a separate account per organisation.** Scope identity to the tenant:
+`users.org_id NOT NULL` with `UNIQUE(org_id, email)`, and login resolves `(org, email)` to exactly one account
+with its own password. The same email in two organisations is then two unrelated accounts that know nothing about
+each other.
+- Removes flaw 1 entirely: adding an email never touches another organisation's data.
+- Removes flaw 2: each organisation owns its users' credentials, and per-organisation SSO/OIDC becomes
+  straightforward.
+- Flaw 3 stays by design (isolation wins). The extension point is an opt-in, crew-controlled "busy (other
+  organisation)" status that shares only dates, never mission details.
+
+**Migration sketch.** Make `Membership` the authenticated account (move `email`/`password_hash` onto it, or create
+one user row per membership). Split any user with several memberships into one account per organisation, copying the
+password hash so nobody is locked out. Change login to look up by `(org_slug, email)`. Tokens, `TenantContext` and
+every repository stay unchanged, because they are already scoped to a single membership.
+
+**Interim mitigation, if the shared model is kept for a while.** Store display names per membership instead of
+reading `users.name`. When an added email already has an account, return a neutral message ("this person already
+has an account and will log in with their existing password") without echoing any data from elsewhere.
+

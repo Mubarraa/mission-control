@@ -85,6 +85,9 @@ mc member list|add|deactivate      mc skill list|add|deactivate
 - Exit codes: `0` ok, `2` usage, `3` auth/permission, `4` not found, `5` conflict/validation, `6` server/connection.
 - Configuration: `--api URL` or `MC_API_URL`; the session lives in `~/.config/mc/session.json` (mode 0600, token
   only); `MC_PASSWORD` allows non-interactive login (used by the demo).
+- Suggested commands are printed as `uv run mc ...` so you can copy them directly. If you install the CLI
+  (`uv tool install ./cli`), set `MC_COMMAND=mc` to get plain `mc ...` suggestions.
+- Examples in this README write `mc` for short; from the repo, run them as `uv run mc`.
 
 ## Common workflows
 

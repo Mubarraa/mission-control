@@ -246,3 +246,23 @@ def test_inbox_json(mc, mock_api, logged_in):
     mock_api({("GET", "/v1/inbox"): (200, body)})
     code, out, _ = mc("inbox", "--json")
     assert code == 0 and json.loads(out) == body
+
+
+def test_hints_default_to_uv_run(mc, mock_api, logged_in, monkeypatch):
+    monkeypatch.delenv("MC_COMMAND")
+    mock_api({("POST", "/v1/missions"): (201, MISSION)})
+    _, out, _ = mc("mission", "create", "M", "--start", "2027-03-01", "--end", "2027-03-21")
+    assert "Next: uv run mc mission slot add ART-12" in out
+
+
+def test_error_hints_use_prefix_too(mc, cli_env, monkeypatch):
+    monkeypatch.setenv("MC_COMMAND", "uv run mc")
+    _, _, err = mc("mission", "list")  # not logged in
+    assert "Run `uv run mc login --org <slug>` first." in err
+
+
+def test_custom_prefix(mc, mock_api, logged_in, monkeypatch):
+    monkeypatch.setenv("MC_COMMAND", "mcx")
+    mock_api({("POST", "/v1/missions"): (201, MISSION)})
+    _, out, _ = mc("mission", "create", "M", "--start", "2027-03-01", "--end", "2027-03-21")
+    assert "Next: mcx mission slot add ART-12" in out and "uv run" not in out

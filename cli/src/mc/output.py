@@ -1,6 +1,8 @@
 """Rendering helpers: readable Rich output by default, raw JSON with --json."""
 
 import json
+import os
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -36,6 +38,21 @@ STATE_STYLE = {
 }
 
 
+_MC = re.compile(r"(?<![\w/.-])mc (?=[a-z<-])")
+
+
+def command_prefix() -> str:
+    """How the user runs mc. Defaults to `uv run mc` (the documented way from the repo); set MC_COMMAND=mc
+    after `uv tool install ./cli`, or anything else that fits your setup."""
+    return os.environ.get("MC_COMMAND", "uv run mc").strip() or "mc"
+
+
+def localize(text: str) -> str:
+    """Rewrite suggested `mc ...` commands so they can be copied and run as-is."""
+    prefix = command_prefix()
+    return text if prefix == "mc" else _MC.sub(f"{prefix} ", text)
+
+
 def emit(data: Any, render) -> None:
     """Print `data` as JSON in --json mode, otherwise call `render()`."""
     if state.json:
@@ -58,6 +75,7 @@ def next_steps(*commands: str) -> None:
     commands = tuple(c for c in commands if c)
     if state.json or not commands:
         return
+    commands = tuple(localize(c) for c in commands)
     console.print(f"  [dim]Next:[/dim] [bold]{commands[0]}[/bold]")
     for c in commands[1:]:
         console.print(f"        [bold]{c}[/bold]")

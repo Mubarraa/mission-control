@@ -1,12 +1,21 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
+from mission_control.api.banner import print_banner
 from mission_control.api.errors import install_error_handlers
 from mission_control.api.routers import assignments, auth, crew, inbox, matching, missions, org, skills
 from mission_control.clock import Clock
 
 
 def create_app(clock: Clock | None = None) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        print_banner()
+        yield
+
     app = FastAPI(
+        lifespan=lifespan,
         title="Mission Control API",
         version="0.1.0",
         description="Multi-tenant mission planning, approval and crew matching.",

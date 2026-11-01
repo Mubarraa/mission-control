@@ -11,13 +11,15 @@ import typer
 
 from mc.commands import assignments, auth, crew, inbox, match, missions, org
 from mc.errors import EXIT_USAGE, CliError
-from mc.output import err, state
+from mc.output import err, localize, state
 
 app = typer.Typer(
     name="mc",
     help="Mission Control: plan missions, staff them with the right crew, and get them approved.\n\n"
     "Start with `mc login --org <slug>`, then `mc inbox`. Add --json to any command for machine output.",
     no_args_is_help=True,
+    epilog="Step-by-step guides: README.md -> [bold]Common workflows[/bold] (onboard crew, plan & staff a mission, "
+    "approve, handle changes). Every command has --help.",
     rich_markup_mode="rich",
     add_completion=False,
     pretty_exceptions_enable=False,
@@ -56,9 +58,9 @@ def run(argv: list[str] | None = None) -> int:
         result = app(args, prog_name="mc", standalone_mode=False)
         return result if isinstance(result, int) else 0
     except CliError as exc:
-        err.print(f"[red]Error:[/red] {exc.message}")
+        err.print(f"[red]Error:[/red] {localize(exc.message)}")
         if exc.hint:
-            err.print(f"  [dim]{exc.hint}[/dim]")
+            err.print(f"  [dim]{localize(exc.hint)}[/dim]")
         return exc.exit_code
     except click.exceptions.UsageError as exc:
         exc.show()

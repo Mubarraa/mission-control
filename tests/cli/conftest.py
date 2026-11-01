@@ -39,6 +39,7 @@ def cli_env(tmp_path, monkeypatch):
     monkeypatch.setenv("COLUMNS", "200")
     monkeypatch.delenv("MC_API_URL", raising=False)
     monkeypatch.delenv("MC_PASSWORD", raising=False)
+    monkeypatch.setenv("MC_COMMAND", "mc")  # keep assertions readable; the default prefix has its own test
     return tmp_path
 
 

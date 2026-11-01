@@ -17,7 +17,7 @@ seed:          ## Load demo organisations (safe to re-run)
 	uv run mission-control-seed
 
 run:           ## Run the API on http://localhost:8000
-	uv run uvicorn mission_control.api.app:create_app --factory --reload --port 8000
+	MC_BANNER_URL=http://localhost:8000 uv run uvicorn mission_control.api.app:create_app --factory --reload --port 8000
 
 test:          ## Unit + API + e2e tests (needs `make up`)
 	uv run pytest
