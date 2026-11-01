@@ -1,11 +1,28 @@
+from enum import StrEnum
+
 import typer
 
-from mc.errors import EXIT_USAGE, CliError
 from mc.guides import GUIDES
 from mc.output import console, emit, localize, next_steps
 
 
-def guide(topic: str = typer.Argument(None, help="onboard (add a new crew member) | plan | approve | changes")) -> None:
+class Topic(StrEnum):
+    onboard = "onboard"
+    plan = "plan"
+    approve = "approve"
+    changes = "changes"
+
+
+TOPICS_HELP = localize(
+    "Topics: "
+    + "  ·  ".join(f"{key} ({g['title'].lower()})" for key, g in GUIDES.items())
+    + "\n\nExample: mc guide onboard"
+)
+
+
+def guide(
+    topic: Topic = typer.Argument(None, help="Which guide to show; leave out to list them all.", show_default=False),
+) -> None:
     """Step-by-step guides for the main workflows, showing who runs each step."""
     if topic is None:
         data = {k: {"title": g["title"], "summary": g["summary"]} for k, g in GUIDES.items()}
@@ -18,9 +35,7 @@ def guide(topic: str = typer.Argument(None, help="onboard (add a new crew member
 
         emit(data, render)
         return
-    g = GUIDES.get(topic.lower())
-    if g is None:
-        raise CliError(f"No guide called '{topic}'. Choose one of: {', '.join(GUIDES)}.", EXIT_USAGE)
+    g = GUIDES[topic.value]
     emit(g, lambda: _render(g))
 
 

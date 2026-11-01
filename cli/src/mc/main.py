@@ -30,7 +30,11 @@ app = typer.Typer(
     ),
     no_args_is_help=False,
     invoke_without_command=True,
-    epilog=localize("Workflows: mc guide onboard | plan | approve | changes   ·   Every command has --help."),
+    epilog=localize(
+        "Getting started: mc guide  (lists the step-by-step guides)\n\n"
+        "Workflows: mc guide onboard | plan | approve | changes\n\n"
+        "Every command has --help, e.g. mc mission --help"
+    ),
     rich_markup_mode="rich",
     add_completion=False,
     pretty_exceptions_enable=False,
@@ -77,6 +81,7 @@ def getting_started() -> None:
 app.command(
     "guide",
     rich_help_panel="Getting started",
+    epilog=guide.TOPICS_HELP,
     help="Step-by-step workflows by role: onboard (add a new crew member), plan (staff a mission), "
     "approve (get it signed off), changes (withdrawals, releases).",
 )(guide.guide)
@@ -123,7 +128,7 @@ def _usage_error(exc: Exception) -> None:
     message = getattr(exc, "message", None) or str(exc)
     err.print(f"[red]Error:[/red] {message}")
     if "unexpected extra argument" in message:
-        err.print('  [dim]If a name contains spaces, put it in quotes, e.g. "Dev Patel" (or use their email).[/dim]')
+        err.print('  [dim]If a value contains spaces, put it in quotes, e.g. "Dev Patel".[/dim]')
     ctx = getattr(exc, "ctx", None)
     path = getattr(ctx, "command_path", None)
     if path:

@@ -137,7 +137,7 @@ def test_logout(mc, logged_in):
 def test_unquoted_name_is_a_readable_usage_error(mc, cli_env):
     code, out, err = mc("crew", "verify", "Dev", "Patel", "geology")
     assert code == 2 and "Traceback" not in out + err
-    assert "unexpected extra argument" in err and "put it in quotes" in err
+    assert "unexpected extra argument" in err and "put it in quotes" in err and "Dev Patel" in err
     assert "mc crew verify --help" in err
 
 

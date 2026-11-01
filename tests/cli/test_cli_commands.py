@@ -291,7 +291,7 @@ def test_guide_renders_steps_by_role(mc, cli_env):
 
 def test_unknown_guide(mc, cli_env):
     code, _, err = mc("guide", "nope")
-    assert code == EXIT_USAGE and "onboard" in err
+    assert code == EXIT_USAGE and "'nope' is not one of" in err
 
 
 def test_every_guide_command_is_a_real_mc_command():
@@ -425,3 +425,9 @@ def test_inbox_renders_fully_crewed_notification(mc, mock_api, logged_in):
     mock_api({("GET", "/v1/inbox"): (200, inbox)})
     _, out, _ = mc("inbox")
     assert "ART-3 is fully crewed - all 5 positions accepted" in out and "mc mission submit ART-3" in out
+
+
+def test_guide_rejects_unknown_topic_clearly(mc, cli_env):
+    code, out, err = mc("guide", "Getting", "started")
+    assert code == EXIT_USAGE and "Traceback" not in out + err
+    assert "'Getting' is not one of" in err and "onboard" in err and "mc guide --help" in err
