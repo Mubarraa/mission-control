@@ -65,7 +65,7 @@ matcher, and **Orion Dynamics** (`orion-dynamics`, `ORN-n`), which exists to dem
 ```
 mc login --org SLUG [--email E]       mc logout        mc whoami
 mc                                    # getting started: who you are and what to do next
-mc guide [onboard|plan|approve|changes]   # step-by-step workflows, by role
+mc guide onboard|plan|approve|changes     # step-by-step workflows, by role
 mc inbox                              # role-aware home screen; notifications first
 mc inbox dismiss ID
 
@@ -94,101 +94,129 @@ mc member list|add|deactivate      mc skill list|add|deactivate
   (`uv tool install ./cli`), set `MC_COMMAND=mc` to get plain `mc ...` suggestions.
 - Examples in this README write `mc` for short; from the repo, run them as `uv run mc`.
 
-## Common workflows
+## Guide by role
 
-The same guides are available in the terminal: `uv run mc guide` lists them, and `uv run mc guide onboard`,
-`plan`, `approve` or `changes` prints one. Each step shows who runs it. Switch users with `mc login --org <slug> --email <email>`; check who you are with
-`mc whoami`.
+Every command below is run as `uv run mc ...` from the repo (written `mc` here for short). Switch users with
+`mc login --org <slug> --email <email>`, and check who you are with `mc` or `mc whoami`. The same workflows are
+also available in the terminal: `mc guide onboard | plan | approve | changes`.
 
-### 1. Onboard a crew member
+| Role | In one line |
+|---|---|
+| **Director** | Runs the organisation: settings, the skill list, people, verifying skills, and approving missions |
+| **Mission Lead** | Plans missions: slots, matching, offers, verifying skills, and submitting for approval |
+| **Crew Member** | Keeps their own profile current and responds to offers |
 
-**Director:** create the account, and a crew profile if the person flies:
+### Director
 
+**Set up the organisation**
 ```bash
-mc member add sam@artemis.io --name "Sam Rivera" --role CREW --crew   # prompts for an initial password
-mc skill add "Robotics" --category Systems                             # only if the skill doesn't exist yet
+mc org settings                                   # view settings
+mc org settings --approvals 2                     # missions need 2 Directors to approve
+mc org settings --recovery-days 14 --stale-offer-days 3
+mc skill add "Robotics" --category Systems        # only Directors manage the skill list
+mc skill list
+mc skill deactivate "Robotics"
 ```
 
-(If someone is already a member but has no profile yet, use `mc crew create sam@artemis.io`. Leads and Directors
-can have crew profiles too.)
-
-**Crew member:** declare skills and availability:
-
+**Manage people**
 ```bash
-mc profile skill set geology 4                 # levels 1-5; recorded as UNVERIFIED
-mc profile unavailable add 2027-05-01 2027-05-15 --category LEAVE --note "Wedding"
-mc profile show
+mc member add sam@artemis.io --name "Sam Rivera" --role CREW --crew   # --crew also creates a crew profile
+mc member add lee@artemis.io --name "Lee Wong" --role LEAD
+mc member list
+mc member deactivate sam@artemis.io               # asks for confirmation; history is kept
+mc crew create existing@artemis.io                # crew profile for someone who is already a member
 ```
 
-**Director or Lead:** verify the claims. Only verified levels count for matching, and nobody can verify their
-own skills.
-
+**Verify crew skills** (never your own)
 ```bash
+mc crew list                                      # "+1 unverified" marks pending claims
 mc crew show "Sam Rivera"
 mc crew verify "Sam Rivera" geology
-mc crew verify "Sam Rivera" eva --level 2 --cert-expires 2028-12-31   # adjust the level; set the cert expiry
+mc crew verify "Sam Rivera" eva --level 2 --cert-expires 2028-12-31
 ```
 
-If Sam later edits a verified skill, it becomes unverified again, and the previously verified level keeps counting
-until someone verifies the new one. MEDICAL and OTHER unavailability show to Leads only as "Unavailable".
-
-### 2. Plan and staff a mission
-
-**Mission Lead:**
-
+**Approve missions** (never one you submitted or own)
 ```bash
-mc mission create "Shackleton Rim Traverse" --start 2027-03-02 --end 2027-03-20
+mc inbox                                          # missions awaiting approval
+mc mission show ART-4                             # review what you're approving
+mc mission approve ART-4
+mc mission reject ART-4 --reason "Need a backup EVA specialist"
+mc mission history ART-4                          # audit trail
+```
+
+Directors can also do everything a Mission Lead can, on any mission.
+
+### Mission Lead
+
+**Plan a mission**
+```bash
+mc mission create "Shackleton Rim Traverse" --start 2027-03-02 --end 2027-03-20   # prints the code, e.g. ART-4
 mc mission slot add ART-4 --role Commander --skill piloting:4
 mc mission slot add ART-4 --role Geologist --count 2 --skill geology:3
-mc mission slot add ART-4 --role "EVA Specialist" --skill eva:3:cert   # :cert = valid certification required
-mc match ART-4                       # best crew for the whole mission, with reasons
-mc match ART-4 --explain Geologist   # score breakdown, alternatives, and why-not for gaps (closest first)
-mc match ART-4 --apply               # offer the suggestions (or --only Commander)
-mc mission offer ART-4 "Hana Kim" --slot Geologist   # or offer one person by hand (must be eligible)
-```
-
-The matcher never fills a slot with someone below its requirements. To close a gap, verify a pending claim
-(`mc crew verify`), change the dates (`mc mission edit`), or lower the requirement; each of these is visible to
-the approver.
-
-**Crew members:** respond from their inbox (short ids are fine):
-
-```bash
-mc inbox
-mc assignment accept 3d50
-mc assignment decline 3d50 --reason "Family commitment"   # a reason is required
-```
-
-### 3. Get it approved
-
-**Mission Lead:** once every position has an accepted crew member:
-
-```bash
-mc mission submit ART-4
-```
-
-**A different Director** (nobody approves a mission they submitted or own):
-
-```bash
-mc inbox                                   # missions awaiting approval
+mc mission slot add ART-4 --role "EVA Specialist" --skill eva:3:cert            # :cert = valid certification
+mc mission edit ART-4 --end 2027-03-22            # date changes send a pending/approved mission back to DRAFT
 mc mission show ART-4
-mc mission approve ART-4                   # or: mc mission reject ART-4 --reason "Need a backup EVA"
 ```
 
-`mc org settings --approvals 2` makes missions need two Directors. Any edit to the dates, slots or crew sends a
-pending or approved mission back to DRAFT for re-approval. After approval: `mc mission start ART-4`, then
-`mc mission complete ART-4`.
+**Staff it**
+```bash
+mc match ART-4                                    # best crew for the whole mission, with reasons
+mc match ART-4 --explain Geologist                # score breakdown, alternatives, why-not (closest first)
+mc match ART-4 --apply                            # offer the suggestions (or --only Commander)
+mc mission offer ART-4 "Hana Kim" --slot Geologist   # offer one person by hand (must be eligible)
+mc crew verify "Dev Patel" geology                # if a pending claim would fill a gap
+mc inbox                                          # who has accepted, who is still pending
+```
 
-### 4. When plans change
+**Get it approved and run it**
+```bash
+mc mission submit ART-4                           # needs an accepted crew member in every position
+mc mission start ART-4                            # after approval
+mc mission complete ART-4
+mc mission cancel ART-4                           # before it starts; asks for confirmation
+```
 
-- **Crew can't go (before launch):** `mc assignment withdraw <id> --reason "..."`. The position reopens, a pending
-  or approved mission returns to DRAFT, and the lead gets a notification in `mc inbox` (dismiss it with
-  `mc inbox dismiss <id>`).
-- **Mission already active:** crew can't withdraw themselves; the lead or a Director runs
-  `mc assignment release <id>`.
-- **Offer left unanswered:** the lead's inbox flags offers older than the org's threshold
-  (`mc org settings --stale-offer-days 5`); follow up, or `mc assignment release <id>` and re-match.
-- **Audit trail:** `mc mission history ART-4`.
+**Handle changes**
+```bash
+mc inbox                                          # withdrawals, stale offers, fully-crewed notices
+mc inbox dismiss <id>
+mc assignment release <id>                        # remove someone (also for emergencies once ACTIVE)
+mc assignment list --mission ART-4
+```
+
+You can't approve your own mission. A different Director has to.
+
+### Crew Member
+
+**Keep your profile current**
+```bash
+mc profile show
+mc profile skill set geology 4                    # adds or changes a skill; it waits for verification
+mc profile skill remove geology
+mc profile unavailable add 2027-05-01 2027-05-15 --category LEAVE --note "Wedding"
+mc profile unavailable list
+mc profile unavailable remove <id>
+```
+Only skills already in the organisation's skill list can be declared. Ask a Director to add a new one.
+MEDICAL and OTHER unavailability show to Leads only as "Unavailable", and your note is private.
+
+**Respond to offers**
+```bash
+mc inbox                                          # your offers and skills awaiting verification
+mc assignment accept <id>                         # short ids are fine
+mc assignment decline <id> --reason "Family commitment"     # a reason is required
+mc assignment withdraw <id> --reason "Knee injury"          # before launch; the lead is notified
+mc assignment list
+```
+
+### How the roles hand off
+
+| Workflow | Steps |
+|---|---|
+| Onboard crew | **Director** adds the member (`--crew`), then the **crew member** declares skills and availability, then a **Director or Lead** verifies the skills |
+| Staff a mission | **Lead** creates it, adds slots, matches and offers, then each **crew member** accepts (the Lead gets a "fully crewed" notification) |
+| Approval | **Lead** submits, then a **different Director** approves or rejects (rejection returns it to DRAFT for the Lead) |
+| Withdrawal | **Crew member** withdraws with a reason, then the **Lead** is notified, the mission returns to DRAFT, and the Lead re-matches |
 
 ## Development
 
