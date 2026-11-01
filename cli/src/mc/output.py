@@ -42,9 +42,15 @@ _MC = re.compile(r"(?<![\w/.-])mc (?=[a-z<-])")
 
 
 def command_prefix() -> str:
-    """How the user runs mc. Defaults to `uv run mc` (the documented way from the repo); set MC_COMMAND=mc
-    after `uv tool install ./cli`, or anything else that fits your setup."""
-    return os.environ.get("MC_COMMAND", "uv run mc").strip() or "mc"
+    """How the user runs mc, so suggested commands can be copied as-is.
+
+    MC_COMMAND overrides; otherwise `uv run mc` when launched through `uv run` (uv sets UV_RUN_RECURSION_DEPTH),
+    and plain `mc` when installed with `make install-cli` (or run from an activated virtualenv).
+    """
+    override = os.environ.get("MC_COMMAND", "").strip()
+    if override:
+        return override
+    return "uv run mc" if os.environ.get("UV_RUN_RECURSION_DEPTH") else "mc"
 
 
 def localize(text: str) -> str:

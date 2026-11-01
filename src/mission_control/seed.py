@@ -365,7 +365,9 @@ def print_logins(db: Session) -> None:
             f"  {r['org']:<16} {r['role']:<9} {r['name']:<16} {r['email']:<22} "
             f"{'yes' if r['crew'] else '-':<5} {password}{status}"
         )
-    print("\nLog in with:  uv run mc login --org <ORG> --email <EMAIL>")
+    from mission_control.cli_hint import mc_command
+
+    print(f"\nLog in with:  {mc_command()} login --org <ORG> --email <EMAIL>")
 
 
 def main() -> None:
@@ -387,4 +389,6 @@ def main() -> None:
                 print("Demo organisations already exist - nothing to do.")
         print_logins(db)
     if not args.logins:
-        print("Then try:  uv run mc match ART-3      (show these again any time: make logins)")
+        from mission_control.cli_hint import mc_command
+
+        print(f"Then try:  {mc_command()} match ART-3      (show these again any time: make logins)")

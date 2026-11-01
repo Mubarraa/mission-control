@@ -8,11 +8,12 @@ export MC_PASSWORD="mission-control-demo"
 export MC_CONFIG_DIR="$(mktemp -d)"
 trap 'rm -rf "$MC_CONFIG_DIR"' EXIT
 
-MC="uv run --quiet mc"
+if command -v mc >/dev/null 2>&1; then MC="mc"; MC_SHOWN="mc"; else MC="uv run --quiet mc"; MC_SHOWN="uv run mc"; fi
+export MC_COMMAND="$MC_SHOWN"   # hints printed by mc match the way this script runs it
 BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
 
 say()  { printf '\n%s== %s%s\n' "$BOLD" "$1" "$RESET"; }
-run()  { printf '%s$ uv run mc' "$DIM"; printf ' %q' "$@"; printf '%s\n' "$RESET"; $MC "$@" || true; }
+run()  { printf '%s$ %s' "$DIM" "$MC_SHOWN"; printf ' %q' "$@"; printf '%s\n' "$RESET"; $MC "$@" || true; }
 as()   { $MC login --org "${2:-artemis-labs}" --email "$1" >/dev/null; printf '%s(now acting as %s)%s\n' "$DIM" "$1" "$RESET"; }
 json() { $MC "$@" --json; }
 field(){ python3 -c "import json,sys; print(eval('json.load(sys.stdin)'+sys.argv[1]))" "$1"; }

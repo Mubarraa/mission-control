@@ -6,18 +6,11 @@ Every command talks to the HTTP API only.
 
 import sys
 
-import click
 import typer
-
-try:  # newer Typer vendors its own copy of click; its exceptions are not click's
-    from typer._click import exceptions as _tclick
-
-    USAGE_ERRORS: tuple[type[Exception], ...] = (click.exceptions.UsageError, _tclick.UsageError)
-except ImportError:  # pragma: no cover - older Typer uses click directly
-    USAGE_ERRORS = (click.exceptions.UsageError,)
 
 from mc import session
 from mc.commands import assignments, auth, crew, guide, inbox, match, missions, org
+from mc.compat import ABORTS, EXITS, USAGE_ERRORS
 from mc.errors import EXIT_USAGE, CliError
 from mc.output import ROLE_LABEL, console, err, localize, next_steps, state
 
@@ -116,10 +109,10 @@ def run(argv: list[str] | None = None) -> int:
     except USAGE_ERRORS as exc:
         _usage_error(exc)
         return EXIT_USAGE
-    except (click.exceptions.Abort, typer.Abort):
+    except ABORTS:
         err.print("Aborted - nothing was changed.")
         return 1
-    except (click.exceptions.Exit, typer.Exit) as exc:
+    except EXITS as exc:
         return exc.exit_code
 
 

@@ -20,17 +20,21 @@ independently approved. It consists of an HTTP API (FastAPI + Postgres) and the 
 make up        # start Postgres (waits until healthy)
 make migrate   # create the schema
 make seed      # two demo organisations; prints the logins (password: mission-control-demo)
-make logins    # show the logins again any time
+make install-cli   # installs the `mc` command (editable, so it picks up code changes)
 make run       # API on http://localhost:8000  (OpenAPI docs at /docs)
 ```
 
 In a second terminal:
 
 ```bash
-uv run mc login --org artemis-labs --email priya@artemis.io   # password: mission-control-demo
-uv run mc inbox
-uv run mc match ART-3
+mc login --org artemis-labs --email priya@artemis.io   # password: mission-control-demo
+mc inbox
+mc match ART-3
 ```
+
+`make logins` shows the logins again at any time. If `mc` isn't found after `make install-cli`, run
+`uv tool update-shell` and open a new terminal. If you'd rather not install it, put `uv run` in front of every
+`mc` command (`uv run mc inbox`); everything works the same. `make uninstall-cli` removes it.
 
 To see the whole journey narrated in about a minute (it uses its own throwaway session):
 
@@ -90,13 +94,12 @@ mc member list|add|deactivate      mc skill list|add|deactivate
 - Exit codes: `0` ok, `2` usage, `3` auth/permission, `4` not found, `5` conflict/validation, `6` server/connection.
 - Configuration: `--api URL` or `MC_API_URL`; the session lives in `~/.config/mc/session.json` (mode 0600, token
   only); `MC_PASSWORD` allows non-interactive login (used by the demo).
-- Suggested commands are printed as `uv run mc ...` so you can copy them directly. If you install the CLI
-  (`uv tool install ./cli`), set `MC_COMMAND=mc` to get plain `mc ...` suggestions.
-- Examples in this README write `mc` for short; from the repo, run them as `uv run mc`.
+- Suggested commands match how you run the CLI: `mc ...` when it's installed, `uv run mc ...` when run through
+  uv, so they can always be copied as-is (override with `MC_COMMAND`).
 
 ## Guide by role
 
-Every command below is run as `uv run mc ...` from the repo (written `mc` here for short). Switch users with
+Commands assume `make install-cli`; otherwise put `uv run` in front. Switch users with
 `mc login --org <slug> --email <email>`, and check who you are with `mc` or `mc whoami`. The same workflows are
 also available in the terminal: `mc guide onboard | plan | approve | changes`.
 

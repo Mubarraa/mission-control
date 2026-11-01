@@ -8,6 +8,8 @@ import sys
 
 from sqlalchemy import select
 
+from mission_control.cli_hint import mc_command
+
 B, D, G, Y, R = "\033[1m", "\033[2m", "\033[32m", "\033[33m", "\033[0m"
 
 
@@ -24,11 +26,17 @@ def _demo_seeded() -> bool | None:
         return None
 
 
+def pad(mc: str, used: int = 0) -> str:
+    """Align the comment column regardless of whether the command is `mc` or `uv run mc`."""
+    return " " * max(2, 26 - len(mc) - used)
+
+
 def print_banner() -> None:
     url = os.environ.get("MC_BANNER_URL")
     if not url:
         return
     seeded = _demo_seeded()
+    mc = mc_command()
     lines = [
         "",
         f"{G}{B}Mission Control API is running{R} at {B}{url}{R}   {D}(interactive API docs: {url}/docs){R}",
@@ -37,17 +45,19 @@ def print_banner() -> None:
     ]
     if seeded:
         lines += [
-            f"  uv run mc login --org artemis-labs --email priya@artemis.io   {D}# password: mission-control-demo{R}",
-            "  uv run mc inbox                 # what needs your attention",
-            "  uv run mc match ART-3           # crew suggestions for the seeded survey",
+            f"  {mc} login --org artemis-labs --email priya@artemis.io   {D}# password: mission-control-demo{R}",
+            f"  {mc} inbox{pad(mc)}# what needs your attention",
+            f"  {mc} match ART-3{pad(mc, 6)}# crew suggestions for the seeded survey",
         ]
     elif seeded is False:
         lines += [f"  {Y}make seed{R}                       # load the demo organisations first, then log in"]
     else:
         lines += [f"  {Y}Database not reachable:{R} run `make up && make migrate && make seed`"]
+    if mc != "mc":
+        lines += [f"  make install-cli                {D}# optional: then just type `mc` instead of `uv run mc`{R}"]
     lines += [
-        f"  uv run mc guide                 {D}# step-by-step workflows, by role{R}",
-        f"  uv run mc --help                {D}# every command, grouped by workflow{R}",
+        f"  {mc} guide{pad(mc)}{D}# step-by-step workflows, by role{R}",
+        f"  {mc} --help{pad(mc, 1)}{D}# every command, grouped by workflow{R}",
         f"  make logins                     {D}# list every login (demo password: mission-control-demo){R}",
         f"  make demo                       {D}# narrated end-to-end walkthrough (about a minute){R}",
         "",

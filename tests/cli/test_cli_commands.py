@@ -250,6 +250,7 @@ def test_inbox_json(mc, mock_api, logged_in):
 
 def test_hints_default_to_uv_run(mc, mock_api, logged_in, monkeypatch):
     monkeypatch.delenv("MC_COMMAND")
+    monkeypatch.setenv("UV_RUN_RECURSION_DEPTH", "1")
     mock_api({("POST", "/v1/missions"): (201, MISSION)})
     _, out, _ = mc("mission", "create", "M", "--start", "2027-03-01", "--end", "2027-03-21")
     assert "Next: uv run mc mission slot add ART-12" in out
@@ -272,7 +273,6 @@ def test_custom_prefix(mc, mock_api, logged_in, monkeypatch):
 
 import shlex  # noqa: E402
 
-import click  # noqa: E402
 import typer.main  # noqa: E402
 
 from mc.guides import GUIDES  # noqa: E402
@@ -302,10 +302,12 @@ def test_every_guide_command_is_a_real_mc_command():
                 continue
             tokens = shlex.split(command)[1:]
             cmd, path = root, []
-            while isinstance(cmd, click.Group) and tokens and tokens[0] in cmd.commands:
+            while hasattr(cmd, "commands") and tokens and tokens[0] in cmd.commands:
                 path.append(tokens.pop(0))
                 cmd = cmd.commands[path[-1]]
-            assert not isinstance(cmd, click.Group), f"{topic}: '{command}' is not a full command"
+            runnable = not hasattr(cmd, "commands") or getattr(cmd, "invoke_without_command", False)
+            assert runnable, f"{topic}: '{command}' is not a full command"
+            assert path, f"{topic}: '{command}' did not match any command"
             cmd.make_context(" ".join(path), tokens)  # raises if options/arguments don't parse
 
 
@@ -431,3 +433,19 @@ def test_guide_rejects_unknown_topic_clearly(mc, cli_env):
     code, out, err = mc("guide", "Getting", "started")
     assert code == EXIT_USAGE and "Traceback" not in out + err
     assert "'Getting' is not one of" in err and "onboard" in err and "mc guide --help" in err
+
+
+def test_hints_are_plain_mc_when_installed(mc, mock_api, logged_in, monkeypatch):
+    monkeypatch.delenv("MC_COMMAND")
+    monkeypatch.delenv("UV_RUN_RECURSION_DEPTH", raising=False)  # not launched through `uv run`
+    mock_api({("POST", "/v1/missions"): (201, MISSION)})
+    _, out, _ = mc("mission", "create", "M", "--start", "2027-03-01", "--end", "2027-03-21")
+    assert "Next: mc mission slot add ART-12" in out and "uv run" not in out
+
+
+def test_hints_say_uv_run_when_launched_through_uv(mc, mock_api, logged_in, monkeypatch):
+    monkeypatch.delenv("MC_COMMAND")
+    monkeypatch.setenv("UV_RUN_RECURSION_DEPTH", "1")
+    mock_api({("POST", "/v1/missions"): (201, MISSION)})
+    _, out, _ = mc("mission", "create", "M", "--start", "2027-03-01", "--end", "2027-03-21")
+    assert "Next: uv run mc mission slot add ART-12" in out
