@@ -311,30 +311,80 @@ def seed(db: Session) -> list[tuple[str, str, str]]:
     return logins
 
 
+ROLE_ORDER = {"DIRECTOR": 0, "LEAD": 1, "CREW": 2}
+
+
+def logins(db: Session) -> list[dict]:
+    """Everyone who can log in, read from the database (so members added later appear too)."""
+    from mission_control.security import verify_password
+
+    rows = db.execute(
+        select(
+            m.Organisation.slug,
+            m.Membership.role,
+            m.Membership.active,
+            m.User.name,
+            m.User.email,
+            m.User.password_hash,
+            m.CrewProfile.id,
+        )
+        .join(m.Membership, m.Membership.org_id == m.Organisation.id)
+        .join(m.User, m.User.id == m.Membership.user_id)
+        .outerjoin(m.CrewProfile, m.CrewProfile.membership_id == m.Membership.id)
+    ).all()
+    demo_hash: dict[str, bool] = {}
+    out = []
+    for slug, role, active, name, email, pw_hash, crew_id in rows:
+        if pw_hash not in demo_hash:  # seeded users share one hash, so this verifies once per distinct password
+            demo_hash[pw_hash] = verify_password(DEMO_PASSWORD, pw_hash)
+        out.append(
+            {
+                "org": slug,
+                "role": role,
+                "name": name,
+                "email": email,
+                "active": active,
+                "crew": crew_id is not None,
+                "demo_password": demo_hash[pw_hash],
+            }
+        )
+    return sorted(out, key=lambda r: (r["org"], ROLE_ORDER.get(r["role"], 9), r["name"]))
+
+
+def print_logins(db: Session) -> None:
+    rows = logins(db)
+    if not rows:
+        print("No users yet. Run `make seed` to load the demo organisations.")
+        return
+    print(f"\nLogins  (demo password: {DEMO_PASSWORD})\n")
+    print(f"  {'ORG':<16} {'ROLE':<9} {'NAME':<16} {'EMAIL':<22} {'CREW':<5} PASSWORD")
+    for r in rows:
+        status = "" if r["active"] else "  (deactivated)"
+        password = "demo" if r["demo_password"] else "own"
+        print(
+            f"  {r['org']:<16} {r['role']:<9} {r['name']:<16} {r['email']:<22} "
+            f"{'yes' if r['crew'] else '-':<5} {password}{status}"
+        )
+    print("\nLog in with:  uv run mc login --org <ORG> --email <EMAIL>")
+
+
 def main() -> None:
+    import argparse
+
     from mission_control.db.session import get_engine
 
+    parser = argparse.ArgumentParser(description="Load demo data, or list logins.")
+    parser.add_argument("--logins", action="store_true", help="only list who can log in")
+    args = parser.parse_args()
+
     with Session(get_engine()) as db:
-        created = seed(db)
-        db.commit()
-    if created:
-        print(f"Seeded {len({s for s, _, _ in created})} organisation(s).")
-    else:
-        print("Demo organisations already exist - nothing to do.")
-    print(f"\nDemo logins (password for everyone: {DEMO_PASSWORD})\n")
-    print(f"  {'ORG':<16} {'ROLE':<9} EMAIL")
-    for slug, email, role in [
-        ("artemis-labs", "amara@artemis.io", "DIRECTOR"),
-        ("artemis-labs", "lena@artemis.io", "DIRECTOR"),
-        ("artemis-labs", "priya@artemis.io", "LEAD"),
-        ("artemis-labs", "marcus@artemis.io", "LEAD"),
-        ("artemis-labs", "alice@artemis.io", "CREW"),
-        ("artemis-labs", "bob@artemis.io", "CREW"),
-        ("artemis-labs", "dev@artemis.io", "CREW"),
-        ("artemis-labs", "ivan@artemis.io", "CREW"),
-        ("artemis-labs", "gabe@artemis.io", "CREW"),
-        ("orion-dynamics", "oskar@orion.space", "DIRECTOR"),
-    ]:
-        print(f"  {slug:<16} {role:<9} {email}")
-    print("\n  ...plus more crew: carol, eve, farah, hana, jo @artemis.io; tomas, mei, rhea, kai @orion.space")
-    print("\nTry:  mc login --org artemis-labs --email priya@artemis.io   then   mc match ART-3")
+        if not args.logins:
+            created = seed(db)
+            db.commit()
+            if created:
+                print(f"Seeded {len({s for s, _, _ in created})} organisation(s).")
+            else:
+                print("Demo organisations already exist - nothing to do.")
+        print_logins(db)
+    if not args.logins:
+        print("Then try:  uv run mc match ART-3      (show these again any time: make logins)")

@@ -48,6 +48,7 @@ def print_banner() -> None:
     lines += [
         f"  uv run mc guide                 {D}# step-by-step workflows, by role{R}",
         f"  uv run mc --help                {D}# every command, grouped by workflow{R}",
+        f"  make logins                     {D}# list every login (demo password: mission-control-demo){R}",
         f"  make demo                       {D}# narrated end-to-end walkthrough (about a minute){R}",
         "",
         f'{B}Step-by-step guides:{R} README.md -> "Common workflows" (onboard crew, plan & staff, approve, changes)',

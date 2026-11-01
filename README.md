@@ -20,6 +20,7 @@ independently approved. It consists of an HTTP API (FastAPI + Postgres) and the 
 make up        # start Postgres (waits until healthy)
 make migrate   # create the schema
 make seed      # two demo organisations; prints the logins (password: mission-control-demo)
+make logins    # show the logins again any time
 make run       # API on http://localhost:8000  (OpenAPI docs at /docs)
 ```
 

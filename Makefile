@@ -1,4 +1,4 @@
-.PHONY: up down migrate seed run test test-unit demo lint fmt
+.PHONY: up down migrate seed logins run test test-unit demo lint fmt
 
 # Docker Desktop installs its CLI in ~/.docker/bin, which is not always on PATH.
 DOCKER ?= PATH="$(HOME)/.docker/bin:$$PATH" docker
@@ -15,6 +15,9 @@ migrate:       ## Apply database migrations
 
 seed:          ## Load demo organisations (safe to re-run)
 	uv run mission-control-seed
+
+logins:        ## List everyone who can log in (and the demo password)
+	uv run mission-control-seed --logins
 
 run:           ## Run the API on http://localhost:8000
 	MC_BANNER_URL=http://localhost:8000 uv run uvicorn mission_control.api.app:create_app --factory --reload --port 8000

@@ -29,3 +29,19 @@ def test_seed_is_rerunnable_and_match_shows_designed_scenarios(client, db):
     assert picks["Flight Surgeon"] == "Gabe Ito"  # right-sizing beats the level-5 expert
     gap = next(p for p in body["positions"] if p["label"] == "Geologist #2")
     assert gap["unfilled_reasons"][0]["name"] == "Dev Patel"  # closest: verifying would qualify
+
+
+def test_logins_lists_everyone_and_marks_demo_passwords(db, capsys):
+    from mission_control.seed import logins, print_logins
+    from tests.factories import make_member
+
+    seed(db)
+    org = db.scalar(select(m.Organisation).where(m.Organisation.slug == "artemis-labs"))
+    make_member(db, org, "CREW", email="sam@artemis.io", name="Sam Rivera")  # added later, own password
+    rows = {r["email"]: r for r in logins(db)}
+    assert rows["priya@artemis.io"]["demo_password"] and rows["priya@artemis.io"]["role"] == "LEAD"
+    assert rows["sam@artemis.io"]["demo_password"] is False
+    assert {"carol@artemis.io", "kai@orion.space", "oskar@orion.space"} <= set(rows)
+    print_logins(db)
+    out = capsys.readouterr().out
+    assert DEMO_PASSWORD in out and "sam@artemis.io" in out and "own" in out
