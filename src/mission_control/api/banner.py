@@ -61,7 +61,7 @@ def print_banner() -> None:
         f"  make logins                     {D}# list every login (demo password: mission-control-demo){R}",
         f"  make demo                       {D}# narrated end-to-end walkthrough (about a minute){R}",
         "",
-        f'{B}Step-by-step guides:{R} README.md -> "Common workflows" (onboard crew, plan & staff, approve, changes)',
+        f'{B}Tasks for each role:{R} README.md -> "Guide by role" (Director, Mission Lead, Crew Member)',
         f"{D}Stop the server with Ctrl+C.{R}",
         "",
     ]
