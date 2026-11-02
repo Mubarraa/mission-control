@@ -1,6 +1,8 @@
 """Render a Claude Code session JSONL into readable Markdown for reviewers."""
 
-import json, re, sys
+import json
+import re
+import sys
 from pathlib import Path
 
 src, out = Path(sys.argv[1]), Path(sys.argv[2])
