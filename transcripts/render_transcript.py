@@ -81,7 +81,8 @@ md = [
     "",
     "Rendered from the Claude Code session log. Includes every user message, every assistant reply, and each tool "
     "call with its input; long tool outputs and file contents are truncated (`... (N more lines)`). "
-    "Hidden reasoning, internal system context and harness metadata are omitted; home-directory paths are shown as `~`.",
+    "Hidden reasoning, internal system context and harness metadata are omitted; "
+    "home-directory paths are shown as `~`.",
     "",
 ]
 turn = 0
